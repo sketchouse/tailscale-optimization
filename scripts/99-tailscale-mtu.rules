@@ -1,0 +1,2 @@
+# Set MTU to 1280 for tailscale0 interface to prevent packet fragmentation
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="tailscale0", RUN+="/usr/sbin/ip link set dev %k mtu 1280"

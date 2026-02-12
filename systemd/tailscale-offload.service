@@ -1,0 +1,11 @@
+[Unit]
+Description=Tailscale UDP Hardware Offloading Optimization
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/ethtool -K ens33 rx-udp-gro-forwarding on rx-gro-list off
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
