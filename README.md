@@ -24,7 +24,9 @@ Synchronized the Maximum Transmission Unit (MTU) to 1280 on both macOS and Debia
 Bash
 
 # /etc/udev/rules.d/99-tailscale-mtu.rules
+
 ACTION=="add", SUBSYSTEM=="net", KERNEL=="tailscale0", RUN+="/usr/sbin/ip link set dev tailscale0 mtu 1280"
+
 3. UDP Hardware Offloading
 Enabled Generic Receive Offload (GRO) for UDP forwarding to offload packet processing from the CPU to the network interface. This was automated via a systemd service to ensure persistent performance:
 Ini, TOML
