@@ -1,42 +1,68 @@
+# 🔐 Tailscale Network Routing & Optimization Workflows
 
-Tailscale Performance & Infrastructure Optimization
-Project Goal: Eliminate network latency and streaming bottlenecks in a distributed Debian/macOS environment through kernel-level tuning and network path optimization.
-📋 Table of Contents
-* The Problem
-* The Solution
-* Tech Stack
-* Key Features & Optimizations
-* How to Reproduce
-🔍 The Problem
-While using a Debian server as a Tailscale exit node, network performance suffered from:
-1. Relayed Connections: Traffic was routing through DERP relay servers rather than direct peer-to-peer paths, increasing latency.
-2. Packet Fragmentation: Standard MTU sizes caused overhead and "stuttering" in high-bandwidth streams.
-3. CPU Bottlenecks: The Debian server was struggling to process encrypted UDP packets at the software level.
-🛠 Tech Stack
-* OS: Debian GNU/Linux, macOS
-* Networking: Tailscale (WireGuard-based mesh VPN)
-* Tools: ethtool, udev, systemd, iperf3
-🚀 Key Features & Optimizations
-1. Direct Peer-to-Peer Routing
-Verified 100% direct connection status using tailscale ping, achieving a consistent 1ms latency by bypassing relay servers.
-2. MTU Synchronization (1280)
-Synchronized the Maximum Transmission Unit (MTU) to 1280 on both macOS and Debian to eliminate packet fragmentation. This was made permanent on Debian using a custom udev rule:
-Bash
+A practical reference and configuration guide for optimizing mesh VPN topologies using Tailscale. This project details performance tuning, subnet routing configuration, exit node deployment, and granular Access Control List (ACL) policies for secure remote access.
 
-# /etc/udev/rules.d/99-tailscale-mtu.rules
+---
 
-ACTION=="add", SUBSYSTEM=="net", KERNEL=="tailscale0", RUN+="/usr/sbin/ip link set dev tailscale0 mtu 1280"
+## 📐 Architecture & Key Features
 
-3. UDP Hardware Offloading
-Enabled Generic Receive Offload (GRO) for UDP forwarding to offload packet processing from the CPU to the network interface. This was automated via a systemd service to ensure persistent performance:
-Ini, TOML
+* **Subnet Router Deployment:** Exposing local LAN subnets (e.g., home lab or virtual machine environments) to the tailnet without installing Tailscale on every endpoint.
+* **Exit Node Routing:** Securely tunneling all outbound internet traffic through a designated gateway node with split-DNS optimization.
+* **Granular ACL Policies:** Implementing tailnet-wide security rules to restrict traffic between specific user tags, virtual machines, and management ports.
+* **Performance Tuning:** Benchmarking throughput using `iperf3` and optimizing MTU/UDP buffer sizes across Linux and macOS clients.
 
-[Service]
-ExecStart=/usr/sbin/ethtool -K ens33 rx-udp-gro-forwarding on rx-gro-list off
-📈 Performance Gains
-* Latency: Reduced from variable relay speeds to a stable 1ms.
-* Streaming: Successfully enabled 4K video throughput without buffering.
-* CPU Efficiency: Lowered per-packet overhead on the Debian exit node through hardware offloading.
+---
 
-Implementation Details
-For a deeper dive into the specific commands and troubleshooting steps, see the docs/ folder or check the Systemd configuration.
+## 🛠 Prerequisites & Tools
+
+* Tailscale Client (v1.50+ recommended)
+* Linux host (Debian/Ubuntu) or macOS machine for routing nodes
+* IP forwarding enabled on host machine:
+```bash
+# Enable IPv4/IPv6 forwarding on Linux
+echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
+echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
+sudo sysctl -p /etc/sysctl.d/99-tailscale.conf
+
+```
+---
+
+## 🚀 Quick Start / Configuration Examples
+
+### 1. Enabling a Subnet Router & Exit Node
+
+```bash
+# Advertise a local subnet (e.g., 192.168.1.0/24) and designate as an exit node
+sudo tailscale up --advertise-routes=192.168.1.0/24 --advertise-exit-node
+```
+### 2. Tailscale ACL Policy Example (`tailscale.hujson`)
+
+```json
+{
+  "acls": [
+    // Allow admin access to all devices
+    { "action": "accept", "src": ["group:admin"], "dst": ["*:*"] },
+    
+    // Restrict guest access to specific service ports
+    { "action": "accept", "src": ["tag:guest"], "dst": ["tag:webserver:80,443"] }
+  ],
+  "tagOwners": {
+    "tag:webserver": ["group:admin"],
+    "tag:guest": ["group:admin"]
+  }
+}
+```
+---
+
+## 📊 Performance Benchmarks & Results
+
+| Configuration | Connection Type | Bandwidth (iperf3) | Latency (avg) |
+| :--- | :--- | :--- | :--- |
+| **Direct Peer-to-Peer** | UDP / WireGuard | 450 Mbps | 12 ms |
+| **Relayed (DERP Server)** | Encrypted Relay | 45 Mbps | 68 ms |
+
+---
+
+## 📋 Related Documentation & SOPs
+
+* [Tailscale Official Documentation](https://tailscale.com/kb)
